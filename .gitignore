@@ -167,6 +167,9 @@ cython_debug/
 
 secrets.json
 disk
+message.py
+res.py
+status.py
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
