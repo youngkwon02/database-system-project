@@ -2,5 +2,5 @@ from . import views
 from django.urls import path
 
 urlpatterns = [
-    path("", views.select_record),
+    path("select/", views.select),
 ]
