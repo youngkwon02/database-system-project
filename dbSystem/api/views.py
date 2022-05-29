@@ -22,10 +22,10 @@ def select(request):
     if('table' not in keys):
         return JsonResponse(fail(BAD_REQUEST, NULL_VALUE))
     # try:
-    cond = []
+    cond = {}
     for key in keys:
         if key != 'table' and key != 'column':
-            cond.append((key, request.GET[key]))
+            cond[key] = request.GET[key]
 
     t_cols = []
     if('column' in keys):
@@ -49,15 +49,12 @@ def select(request):
             nb = list(record.get('nb').get('value'))
             ptrs = record.get('ptrs')
             null_cnt = [0, 0]
-            result = {}
+            _result = {}
             for i in range(len(nb)):
                 _col = cols[i]
 
-                # 컬럼 검색
-                if (len(t_cols) != 0 and _col not in t_cols):
-                    continue
                 if nb[i] == 1:
-                    result[_col] = "null"
+                    _result[_col] = "null"
                     if i < var_cols_size:
                         null_cnt[0] += 1
                     else:
@@ -66,14 +63,19 @@ def select(request):
                     # 가변길이 Data
                     if i < var_cols_size:
                         [location, size] = ptrs[i - null_cnt[0]].get('value')
-                        result[_col] = record.get('variable_data')[
+                        _result[_col] = record.get('variable_data')[
                             str(location)]
 
                     # 고정길이 Data
                     else:
-                        result[_col] = record.get('fixed_data')[i -
-                                                                var_cols_size - null_cnt[1]].get('value')
+                        _result[_col] = record.get('fixed_data')[i -
+                                                                 var_cols_size - null_cnt[1]].get('value')
 
+            # 컬럼 검색
+            result = {}
+            for k in _result.keys():
+                if len(t_cols) == 0 or k in t_cols:
+                    result[k] = _result.get(k)
             res_data.append(result)
     # except:
     #     return JsonResponse(fail(INTERNAL_SERVER_ERROR, SERVER_ERROR))
