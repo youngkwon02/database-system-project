@@ -45,7 +45,10 @@ def select(request):
         res_data = []
 
         for slot in slots:
-            for record in slot.get('records'):
+            slots = slot.get('slots')
+            # slot에 저장된 record의 offset을 읽어옴
+            for offset in slots:
+                record = slot.get('records')[str(offset)]
                 nb = list(record.get('nb').get('value'))
                 ptrs = record.get('ptrs')
                 null_cnt = [0, 0]
