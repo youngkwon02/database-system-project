@@ -215,3 +215,19 @@ def insert(request):
 
     except:
         return JsonResponse(fail(INTERNAL_SERVER_ERROR, SERVER_ERROR))
+
+
+# POST /api/create
+# desc: 테이블 생성
+# error:
+#   1. 잘못된 HTTP METHOD
+#   2. 필요한 값이 없는 경우
+
+def create(request):
+    # error 1. 잘못된 HTTP METHOD
+    if request.method != 'POST':
+        return JsonResponse(fail(BAD_REQUEST, WRONG_METHOD))
+
+    # Request-Body를 utf-8 방식으로 디코딩 (한국어(receiverName) 디코딩을 위해)
+    body_unicode = request.body.decode('utf-8')
+    body = json.loads(body_unicode)
