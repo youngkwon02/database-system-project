@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from django.http import JsonResponse
 from .status import *
 from .message import *
@@ -88,11 +89,10 @@ def select(request):
                         if len(t_cols) == 0 or k in t_cols:
                             result[k] = _result.get(k)
                     res_data.append(result)
+        return JsonResponse(success(OK, SELECT_RECORD_SUCCESS, res_data))
 
     except:
         return JsonResponse(fail(INTERNAL_SERVER_ERROR, SERVER_ERROR))
-
-    return JsonResponse(success(OK, SELECT_RECORD_SUCCESS, res_data))
 
 
 # POST /api/insert
@@ -121,7 +121,6 @@ def insert(request):
         db_table = json.load(file)
 
     try:
-
         meta = db_table.get('meta_data')
         var_cols = list(meta.get('columns').get('variable').keys())
         var_cols_size = len(var_cols)
@@ -131,11 +130,6 @@ def insert(request):
         value = {}
         target_page = db_table.get('slotted_pages')[-1]
         page_entities = target_page.get('entities')
-        slots = target_page.get('slots')
-        if len(slots) >= meta.get('size_of_slot'):
-            target_page = {}
-        else:
-            pass
 
         for col in cols:
             if col not in body.keys():
@@ -193,23 +187,43 @@ def insert(request):
             "variable_data": variable_data
         }
 
-        if len(db_table['slotted_pages'][-1]['slots']) < meta.get('size_of_slot'):
+        new_record_size = 0
+        for key in new_record.keys():
+            attr = new_record.get(key)
+            if key == 'nb':
+                new_record_size += attr.get('size')
+            elif key == 'ptrs':
+                for ptr in attr.get('ptrs'):
+                    new_record_size += ptr.get('size')
+            elif key == 'fixed_data':
+                for fd in attr.get('fixed_data'):
+                    new_record_size += fd.get('size')
+            else:
+                addr = sorted(
+                    list(map(lambda x: int(x), attr.get('variable_data'))))
+                if len(addr) != 0:
+                    new_record_size += (addr[-1] - addr[0])
+
+        if len(db_table['slotted_pages'][-1]['slots']) < meta.get('max_record_of_slot'):
             db_table['slotted_pages'][-1]['slots'] = [new_offset] + \
                 db_table['slotted_pages'][-1]['slots']
             db_table['slotted_pages'][-1]['records'][new_offset] = new_record
+            db_table['slotted_pages'][-1]['entities']['start_of_fs'] += db_table['meta_data']['size_of_slot']
+            db_table['slotted_pages'][-1]['entities']['size_of_fs'] -= new_record_size
         else:
-            new_offset = page_entities.get(
-                'start_of_fs') + page_entities['size_of_fs']
+            new_offset = db_table.get('size_of_page') - new_record_size
             db_table['slotted_pages'].append({
                 "entities": {
-                    "start_of_fs": 20,
-                    "size_of_fs": 3800
+                    "start_of_fs": 8,
+                    "size_of_fs": new_offset - 8
                 },
                 "slots": [new_offset],
                 "records": {
                     new_offset: new_record
                 }
             })
+        db_table['meta_data']['updated_at'] = datetime.now().strftime(
+            '%Y-%m-%d %H:%M:%S')
 
         with open(file_path, 'w', encoding='utf-8') as file:
             json.dump(db_table, file, indent="\t")
@@ -225,6 +239,7 @@ def insert(request):
 # error:
 #   1. 잘못된 HTTP METHOD
 #   2. 필요한 값이 없는 경우
+#   3. 올바르지 않은 컬럼 타입이 전달된 경우
 
 def create(request):
     # error 1. 잘못된 HTTP METHOD
@@ -234,3 +249,57 @@ def create(request):
     # Request-Body를 utf-8 방식으로 디코딩 (한국어(receiverName) 디코딩을 위해)
     body_unicode = request.body.decode('utf-8')
     body = json.loads(body_unicode)
+
+    # error 2. 필요한 값이 없는 경우
+    if('table' not in body):
+        return JsonResponse(fail(BAD_REQUEST, NULL_VALUE))
+
+    meta_data = {}
+    fixed = {}
+    variable = {}
+    try:
+        for k in body.keys():
+            if k == 'table':
+                continue
+            col_type = body.get(k)
+            # error 3. 올바르지 않은 컬럼 타입이 전달된 경우
+            if col_type != 'VARCHAR' and 'CHAR(' not in col_type:
+                return JsonResponse(fail(BAD_REQUEST, OUT_OF_VALUE))
+
+            if col_type == 'VARCHAR':
+                variable[k] = 'VARCHAR'
+            else:
+                fixed[k] = col_type
+
+        columns = {
+            'fixed': fixed,
+            'variable': variable
+        }
+        meta_data['columns'] = columns
+        meta_data['size_of_page'] = 4000    # Fixed Value
+        meta_data['max_record_of_slot'] = 4  # Fixed Value
+        meta_data['size_of_slot'] = 4       # Fixed Value
+        meta_data['created_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        meta_data['updated_at'] = meta_data['created_at']
+        slotted_pages = [{
+            'entities': {
+                'start_of_fs': 4,
+                'size_of_fs': 4000 - 4
+            },
+            'slots': [],
+            'records': {}
+        }]
+
+        table = {
+            'meta_data': meta_data,
+            'slotted_pages': slotted_pages
+        }
+
+        file_path = f"./disk/{body['table']}.json"
+        with open(file_path, 'w', encoding='utf-8') as file:
+            json.dump(table, file, indent="\t")
+
+        return JsonResponse(success(OK, CREATE_TABLE_SUCCESS))
+
+    except:
+        return JsonResponse(fail(INTERNAL_SERVER_ERROR, SERVER_ERROR))
