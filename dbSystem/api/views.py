@@ -123,7 +123,6 @@ def insert(request):
     try:
         meta = db_table.get('meta_data')
         var_cols = list(meta.get('columns').get('variable').keys())
-        var_cols_size = len(var_cols)
         fixed_cols = list(meta.get('columns').get('fixed').keys())
         cols = var_cols + fixed_cols
         nb = ""
@@ -193,14 +192,15 @@ def insert(request):
             if key == 'nb':
                 new_record_size += attr.get('size')
             elif key == 'ptrs':
-                for ptr in attr.get('ptrs'):
+                for ptr in attr:
                     new_record_size += ptr.get('size')
             elif key == 'fixed_data':
-                for fd in attr.get('fixed_data'):
+                for fd in attr:
                     new_record_size += fd.get('size')
             else:
+                # variable length column data
                 addr = sorted(
-                    list(map(lambda x: int(x), attr.get('variable_data'))))
+                    list(map(lambda x: int(x), attr)))
                 if len(addr) != 0:
                     new_record_size += (addr[-1] - addr[0])
 
