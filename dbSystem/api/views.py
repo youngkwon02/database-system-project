@@ -120,94 +120,98 @@ def insert(request):
     with open(file_path, 'r') as file:
         db_table = json.load(file)
 
-    # @TODO: Try-Except
+    try:
 
-    meta = db_table.get('meta_data')
-    var_cols = list(meta.get('columns').get('variable').keys())
-    var_cols_size = len(var_cols)
-    fixed_cols = list(meta.get('columns').get('fixed').keys())
-    cols = var_cols + fixed_cols
-    nb = ""
-    value = {}
-    target_page = db_table.get('slotted_pages')[-1]
-    page_entities = target_page.get('entities')
-    slots = target_page.get('slots')
-    if len(slots) >= meta.get('size_of_slot'):
-        target_page = {}
-    else:
-        pass
-
-    for col in cols:
-        if col not in body.keys():
-            # error 3. 필요한 컬럼에 대한 값이 전달되지 않은 경우
-            return JsonResponse(fail(BAD_REQUEST, OUT_OF_VALUE))
-        if body.get(col) == 'null':
-            nb += '1'
+        meta = db_table.get('meta_data')
+        var_cols = list(meta.get('columns').get('variable').keys())
+        var_cols_size = len(var_cols)
+        fixed_cols = list(meta.get('columns').get('fixed').keys())
+        cols = var_cols + fixed_cols
+        nb = ""
+        value = {}
+        target_page = db_table.get('slotted_pages')[-1]
+        page_entities = target_page.get('entities')
+        slots = target_page.get('slots')
+        if len(slots) >= meta.get('size_of_slot'):
+            target_page = {}
         else:
-            nb += '0'
-        value[col] = body.get(col)
+            pass
 
-    current_offset = 1
-    new_ptrs = []
-    fixed_data = []
-    variable_data = {}
-    for col in cols:
-        # 가변길이 Column
-        if col in var_cols and value[col] != 'null':
-            new_ptr = {
-                "value": [],
-                "location": current_offset,
-                "size": meta.get('size_of_slot')
-            }
-            current_offset += meta.get('size_of_slot')
-            new_ptrs.append(new_ptr)
-        # 고정길이 Column
-        if col in fixed_cols and value[col] != 'null':
-            fixed_data.append({
-                "value": value[col],
-                "location": current_offset,
-                "size": len(value[col])
-            })
-            current_offset += len(value[col])
-    ptr_index = 0
-    for v_col in var_cols:
-        if value[v_col] != 'null':
-            new_ptrs[ptr_index]['value'] = [current_offset, len(value[v_col])]
-            variable_data[current_offset] = value[v_col]
-            current_offset += len(value[v_col])
-            ptr_index += 1
+        for col in cols:
+            if col not in body.keys():
+                # error 3. 필요한 컬럼에 대한 값이 전달되지 않은 경우
+                return JsonResponse(fail(BAD_REQUEST, OUT_OF_VALUE))
+            if body.get(col) == 'null':
+                nb += '1'
+            else:
+                nb += '0'
+            value[col] = body.get(col)
 
-    page_entities['size_of_fs'] -= current_offset
-    new_offset = page_entities.get(
-        'start_of_fs') + page_entities['size_of_fs']
+        current_offset = 1
+        new_ptrs = []
+        fixed_data = []
+        variable_data = {}
+        for col in cols:
+            # 가변길이 Column
+            if col in var_cols and value[col] != 'null':
+                new_ptr = {
+                    "value": [],
+                    "location": current_offset,
+                    "size": meta.get('size_of_slot')
+                }
+                current_offset += meta.get('size_of_slot')
+                new_ptrs.append(new_ptr)
+            # 고정길이 Column
+            if col in fixed_cols and value[col] != 'null':
+                fixed_data.append({
+                    "value": value[col],
+                    "location": current_offset,
+                    "size": len(value[col])
+                })
+                current_offset += len(value[col])
+        ptr_index = 0
+        for v_col in var_cols:
+            if value[v_col] != 'null':
+                new_ptrs[ptr_index]['value'] = [
+                    current_offset, len(value[v_col])]
+                variable_data[current_offset] = value[v_col]
+                current_offset += len(value[v_col])
+                ptr_index += 1
 
-    new_record = {
-        "nb": {
-            "value": nb,
-            "location": 0,
-            "size": 1,
-        },
-        "ptrs": new_ptrs,
-        "fixed_data": fixed_data,
-        "variable_data": variable_data
-    }
-
-    if len(db_table['slotted_pages'][-1]['slots']) < meta.get('size_of_slot'):
-        db_table['slotted_pages'][-1]['slots'] = [new_offset] + \
-            db_table['slotted_pages'][-1]['slots']
-        db_table['slotted_pages'][-1]['records'][new_offset] = new_record
-    else:
+        page_entities['size_of_fs'] -= current_offset
         new_offset = page_entities.get(
             'start_of_fs') + page_entities['size_of_fs']
-        db_table['slotted_pages'].append({
-            "entities": {
-                "start_of_fs": 20,
-                "size_of_fs": 3800
-            },
-            "slots": [new_offset],
-            "records": {
-                new_offset: new_record
-            }
-        })
 
-    return JsonResponse(db_table)
+        new_record = {
+            "nb": {
+                "value": nb,
+                "location": 0,
+                "size": 1,
+            },
+            "ptrs": new_ptrs,
+            "fixed_data": fixed_data,
+            "variable_data": variable_data
+        }
+
+        if len(db_table['slotted_pages'][-1]['slots']) < meta.get('size_of_slot'):
+            db_table['slotted_pages'][-1]['slots'] = [new_offset] + \
+                db_table['slotted_pages'][-1]['slots']
+            db_table['slotted_pages'][-1]['records'][new_offset] = new_record
+        else:
+            new_offset = page_entities.get(
+                'start_of_fs') + page_entities['size_of_fs']
+            db_table['slotted_pages'].append({
+                "entities": {
+                    "start_of_fs": 20,
+                    "size_of_fs": 3800
+                },
+                "slots": [new_offset],
+                "records": {
+                    new_offset: new_record
+                }
+            })
+
+        return JsonResponse(db_table)
+
+    except:
+        return JsonResponse(fail(INTERNAL_SERVER_ERROR, SERVER_ERROR))
