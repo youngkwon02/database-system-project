@@ -211,7 +211,10 @@ def insert(request):
                 }
             })
 
-        return JsonResponse(db_table)
+        with open(file_path, 'w', encoding='utf-8') as file:
+            json.dump(db_table, file, indent="\t")
+
+        return JsonResponse(success(OK, CREATE_RECORD_SUCCESS))
 
     except:
         return JsonResponse(fail(INTERNAL_SERVER_ERROR, SERVER_ERROR))
