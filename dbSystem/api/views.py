@@ -73,8 +73,9 @@ def select(request):
 
                         # 고정길이 Data
                         else:
-                            _result[_col] = record.get('fixed_data')[i -
-                                                                     var_cols_size - null_cnt[1]].get('value')
+                            if len(record.get('fixed_data')) != 0:
+                                _result[_col] = record.get('fixed_data')[i -
+                                                                         var_cols_size - null_cnt[1]].get('value')
 
                     # 조건에 맞지 않으면 컬럼 탐색 멈추고 다음 Record 조회
                     if _col in cond.keys() and cond.get(_col) != _result.get(_col):
