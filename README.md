@@ -128,5 +128,5 @@ Project for database system class in 2022-1
 
 <br>
 
-### ☀️ Record 조회, 컬럼 탕색 요청 및 응답 (SELECT Query)
+### 🌟 Record 조회, 컬럼 탕색 요청 및 응답 (SELECT Query)
 <img width="500" alt="스크린샷 2022-06-02 오후 4 50 22" src="https://user-images.githubusercontent.com/39653584/171581210-718dcb94-d578-4432-a30f-5b885502f511.png">
