@@ -211,7 +211,8 @@ def insert(request):
             db_table['slotted_pages'][-1]['entities']['start_of_fs'] += db_table['meta_data']['size_of_slot']
             db_table['slotted_pages'][-1]['entities']['size_of_fs'] -= new_record_size
         else:
-            new_offset = db_table.get('size_of_page') - new_record_size
+            new_offset = db_table.get('meta_data').get(
+                'size_of_page') - new_record_size
             db_table['slotted_pages'].append({
                 "entities": {
                     "start_of_fs": 8,
